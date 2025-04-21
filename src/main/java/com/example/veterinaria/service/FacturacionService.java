@@ -1,68 +1,125 @@
 package com.example.veterinaria.service;
+
 import com.example.veterinaria.model.Factura;
-import com.example.veterinaria.model.Servicio;  
-import java.util.List;
-import java.util.ArrayList;
+import com.example.veterinaria.model.Servicio;
+import com.example.veterinaria.repository.FacturaRepository;
+import com.example.veterinaria.repository.ServicioRepository;
+import com.example.veterinaria.exception.FacturaNotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 @Service
 public class FacturacionService {
-    private List<Factura> facturas;
-    private List<Servicio> servicios;
+    @Autowired
+    private FacturaRepository facturaRepository;
+    
+    @Autowired
+    private ServicioRepository servicioRepository;
 
-    public FacturacionService() {
-        generacionFacturas();
+    // Obtener todas las facturas
+    public List<Factura> obtenerTodas() {
+        return facturaRepository.findAll();
     }
 
-    private void generarServicios(){
-        servicios = new ArrayList<>();
-        servicios.add(new Servicio("Consulta", "Consulta general", 15000));
-        servicios.add(new Servicio("Vacunacion", "Vacuna contra la rabia", 12000));
-        servicios.add(new Servicio("Desparacitacion", "Desparacitacion general", 8000));        
-        servicios.add(new Servicio("Radiografía", "Radiografía general", 30000));
-        servicios.add(new Servicio("Examen de Sangre", "Exámenes de sangre", 12000));
-        servicios.add(new Servicio("Peluquería", "Baño y Peluquería", 15000));
-        servicios.add(new Servicio("Esterilización", "Esterilización de mascotas", 25000));
-        servicios.add(new Servicio("Hospitalización", "Resultados de exámenes", 55000));
-    }  
+    // Obtener una factura por ID
+    public Factura obtenerPorId(long id) {
+        return facturaRepository.findById(id).orElseThrow(() -> new FacturaNotFoundException(id));
+    }
 
-    public List<Factura> generacionFacturas(){        
-        facturas = new ArrayList<>();
+    // Guardar una factura (con cálculo del total)
+    public Factura guardar(Factura factura) {
+        // Si no se proporcionan servicios, generarlos aleatoriamente
+        if (factura.getServicios() == null || factura.getServicios().isEmpty()) {
+            factura.setServicios(generarServiciosAleatorios());
+        }        
 
-        List<Servicio> servicioFactura1 = generarServiciosAleatorios(); 
-        Factura factura1 = new Factura(1, "Veterinaria Cachupín", "Juan Perez", servicioFactura1, calcularTotal(servicioFactura1));
-        facturas.add(factura1);
+        List<Long> servicioIds = new ArrayList<>();
+        for (Servicio servicio : factura.getServicios()) {
+            servicioIds.add(servicio.getId());
+        }
+
+        List<Servicio> servicios = servicioRepository.findAllById(servicioIds);
         
-        List<Servicio> servicioFactura2 = generarServiciosAleatorios();
-        Factura factura2 = new Factura(2, "Veterinaria Cachupín", "Maria Lopez", servicioFactura2, calcularTotal(servicioFactura2));
-        facturas.add(factura2);
+        // Calcular el total de la factura
+        int total = calcularTotal(servicios);
+        factura.setTotal(total);  // Establecer el total de la factura calculado
+        
+        return facturaRepository.save(factura);
+    }
 
-        List<Servicio> servicioFactura3 = generarServiciosAleatorios();
-        Factura factura3 = new Factura(3, "Veterinaria Cachupín", "Carlos Sanchez", servicioFactura3, calcularTotal(servicioFactura3));
-        facturas.add(factura3);
+    // Eliminar una factura
+    public void eliminar(long id) {
+        Factura factura = facturaRepository.findById(id).orElseThrow(() -> new FacturaNotFoundException(id));
+        facturaRepository.delete(factura);
+    }
 
-        return facturas;
-   }
+    // Actualizar una factura
+    public Factura actualizar(Long id, Factura factura) {
+        Factura facturaExistente = facturaRepository.findById(id).orElseThrow(() -> new FacturaNotFoundException(id));
+        facturaExistente.setRazon_social(factura.getRazon_social());
+        facturaExistente.setCliente(factura.getCliente());
 
-   private List<Servicio> generarServiciosAleatorios() {
-        generarServicios();
-        List<Servicio> serviciosAleatorios = new ArrayList<>();        
-        serviciosAleatorios.add(servicios.get(0)); 
-        while(serviciosAleatorios.size() < 3){
-            Servicio servicioAleatorio = servicios.get((int) (Math.random() * servicios.size()));
-            if (!serviciosAleatorios.contains(servicioAleatorio) && !servicioAleatorio.getNombre().contains("Consulta")) {
-                serviciosAleatorios.add(servicioAleatorio); 
+        // Si se proporcionan servicios, actualizarlos
+        if (factura.getServicios() != null) {
+            List<Long> servicioIds = new ArrayList<>();
+            for (Servicio servicio : factura.getServicios()) {
+                servicioIds.add(servicio.getId());
+            }
+
+            // Obtener los servicios completos desde la base de datos (incluyendo precios)
+            List<Servicio> serviciosActualizados = servicioRepository.findAllById(servicioIds);
+            facturaExistente.setServicios(serviciosActualizados);
+        }
+
+        // Recalcular el total después de actualizar los servicios
+        int total = calcularTotal(facturaExistente.getServicios());
+        facturaExistente.setTotal(total);
+
+        // Guardar la factura actualizada
+        return facturaRepository.save(facturaExistente);
+    }
+
+    // Método para generar servicios aleatorios
+    private List<Servicio> generarServiciosAleatorios() {
+        List<Servicio> todosLosServicios = servicioRepository.findAll();
+        List<Servicio> serviciosFiltrados = new ArrayList<>();
+        List<Servicio> candidatos = new ArrayList<>();
+        
+        // Agregar "Consulta" si existe
+        for (Servicio s : todosLosServicios) {
+            if (s.getNombre().equalsIgnoreCase("Consulta")) {
+                serviciosFiltrados.add(s);
+            } else {
+                candidatos.add(s);
             }
         }
-        return serviciosAleatorios;
+
+        // Seleccionar aleatoriamente hasta 2 servicios más
+        Random rand = new Random();
+        while (serviciosFiltrados.size() < 3 && !candidatos.isEmpty()) {
+            int randomIndex = rand.nextInt(candidatos.size());
+            Servicio servicioAleatorio = candidatos.remove(randomIndex);
+            serviciosFiltrados.add(servicioAleatorio);
+        }
+
+        return serviciosFiltrados;
     }
 
-   private int calcularTotal(List<Servicio> servicios) {
-       int subtotal = 0;
-       for (Servicio servicio : servicios) {
-           subtotal += servicio.getPrecio();
-       }
-       return (int)(subtotal * 1.19); // Aplicar IVA del 19%
-   }
-
+    // Método para calcular el total (con IVA del 19%)
+    private int calcularTotal(List<Servicio> servicios) {
+    int subtotal = 0;
+    for (Servicio servicio : servicios) {
+        System.out.println("Precio del servicio " + servicio.getNombre() + ": " + servicio.getPrecio());
+        subtotal += servicio.getPrecio();
+    }
+    // Aplicar IVA del 19%
+    int totalConIva = (int) (subtotal * 1.19);
+    System.out.println("Subtotal: " + subtotal);
+    System.out.println("Total con IVA: " + totalConIva);
+    return totalConIva;
+}
 }
