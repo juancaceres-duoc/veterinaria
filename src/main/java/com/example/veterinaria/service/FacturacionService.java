@@ -26,7 +26,7 @@ public class FacturacionService {
     }
 
     // Obtener una factura por ID
-    public Factura obtenerPorId(long id) {
+    public Factura obtenerPorId(Long id) {
         return facturaRepository.findById(id).orElseThrow(() -> new FacturaNotFoundException(id));
     }
 

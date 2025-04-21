@@ -23,7 +23,7 @@ public class FacturacionController {
         return facturacionService.obtenerTodas();
     }
     @GetMapping("/{id}")
-    public Factura getFactura(@PathVariable int id) {
+    public Factura getFactura(@PathVariable Long id) {
        return facturacionService.obtenerPorId(id);
     }    
 
