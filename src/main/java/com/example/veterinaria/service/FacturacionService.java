@@ -5,7 +5,7 @@ import com.example.veterinaria.model.Servicio;
 import com.example.veterinaria.repository.FacturaRepository;
 import com.example.veterinaria.repository.ServicioRepository;
 import com.example.veterinaria.exception.FacturaNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -14,11 +14,13 @@ import java.util.Random;
 
 @Service
 public class FacturacionService {
-    @Autowired
-    private FacturaRepository facturaRepository;
     
-    @Autowired
+    private FacturaRepository facturaRepository;    
     private ServicioRepository servicioRepository;
+
+    public FacturacionService(FacturaRepository facturaRepository) {
+        this.facturaRepository = facturaRepository;        
+    }
 
     // Obtener todas las facturas
     public List<Factura> obtenerTodas() {
@@ -110,16 +112,16 @@ public class FacturacionService {
     }
 
     // Método para calcular el total (con IVA del 19%)
-    private int calcularTotal(List<Servicio> servicios) {
+    public int calcularTotal(List<Servicio> servicios) {
     int subtotal = 0;
     for (Servicio servicio : servicios) {
-        System.out.println("Precio del servicio " + servicio.getNombre() + ": " + servicio.getPrecio());
+        //System.out.println("Precio del servicio " + servicio.getNombre() + ": " + servicio.getPrecio());
         subtotal += servicio.getPrecio();
     }
     // Aplicar IVA del 19%
     int totalConIva = (int) (subtotal * 1.19);
-    System.out.println("Subtotal: " + subtotal);
-    System.out.println("Total con IVA: " + totalConIva);
+    //System.out.println("Subtotal: " + subtotal);
+    //System.out.println("Total con IVA: " + totalConIva);
     return totalConIva;
 }
 }

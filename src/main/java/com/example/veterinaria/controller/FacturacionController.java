@@ -1,6 +1,10 @@
 package com.example.veterinaria.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
+import com.example.veterinaria.hateoas.FacturacionModelAssembler;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -9,6 +13,7 @@ import com.example.veterinaria.model.Factura;
 import com.example.veterinaria.model.ResponseWrapper;
 
 import java.util.List;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
 
 
 @RestController
@@ -17,38 +22,95 @@ public class FacturacionController {
 
     @Autowired
     private FacturacionService facturacionService;
+
+    @Autowired
+    private FacturacionModelAssembler facturacionModelAssembler;
    
     @GetMapping
-    public List<Factura> getFacturas() {
-        return facturacionService.obtenerTodas();
+    public  ResponseEntity<ResponseWrapper<CollectionModel<EntityModel<Factura>>>> getFacturas() {
+        List<Factura> facturas = facturacionService.obtenerTodas();
+ 
+         if (facturas.isEmpty()) {
+             return ResponseEntity
+                     .status(HttpStatus.NO_CONTENT)
+                     .body(null);
+         }else {
+            List<EntityModel<Factura>> facturaModel = facturas.stream()
+                .map(facturacionModelAssembler::toModel)
+                .toList();
+
+            CollectionModel<EntityModel<Factura>> collection = CollectionModel.of(facturaModel,
+                linkTo(methodOn(FacturacionController.class).getFacturas()).withSelfRel());
+
+            return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(new ResponseWrapper<>("Facturas obtenidas exitosamente", facturas.size(), List.of(collection)));
+        }        
     }
+
     @GetMapping("/{id}")
-    public Factura getFactura(@PathVariable Long id) {
-       return facturacionService.obtenerPorId(id);
+    public ResponseEntity<ResponseWrapper<EntityModel<Factura>>> getFactura(@PathVariable Long id) {
+       Factura factura = facturacionService.obtenerPorId(id);
+
+        if (factura == null) {
+            return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(new ResponseWrapper<>("Factura no encontrada", 0, null));
+        }else {
+            EntityModel<Factura> facturaModel = facturacionModelAssembler.toModel(factura);
+            return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(new ResponseWrapper<>("Factura obtenida exitosamente", 1, List.of(facturaModel)));
+        }
     }    
 
     @PostMapping
-    public ResponseEntity<ResponseWrapper<Factura>> crearPelicula(@RequestBody Factura factura) {
-        Factura nuevaFactura = facturacionService.guardar(factura);
+    public ResponseEntity<ResponseWrapper<EntityModel<Factura>>> crearPelicula(@RequestBody Factura factura) {
+        Factura facturaCreada = facturacionService.guardar(factura);
 
-        return ResponseEntity
-            .status(HttpStatus.CREATED)
-            .body(new ResponseWrapper<>("Factura Creada", 1, List.of(nuevaFactura)));
+        if (facturaCreada == null) {
+            return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ResponseWrapper<>("Error al crear la factura", 0, null));
+        }else {
+            EntityModel<Factura> facturaModel = facturacionModelAssembler.toModel(facturaCreada);
+            return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(new ResponseWrapper<>("Factura creada exitosamente", 1, List.of(facturaModel)));
+        }   
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ResponseWrapper<Factura>> actualizarFactura(@PathVariable Long id, @RequestBody Factura factura) {
+    public ResponseEntity<ResponseWrapper<EntityModel<Factura>>> actualizarFactura(@PathVariable Long id, @RequestBody Factura factura) {
         Factura facturaActualizada = facturacionService.actualizar(id, factura);
-        return ResponseEntity.ok(new ResponseWrapper<>("Factura Actualizada", 1, List.of(facturaActualizada)));
+        if (facturaActualizada == null) {
+            return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(new ResponseWrapper<>("Factura no encontrada", 0, null));
+        } else {
+            EntityModel<Factura> facturaModel = facturacionModelAssembler.toModel(facturaActualizada);
+            return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(new ResponseWrapper<>("Factura actualizada exitosamente", 1, List.of(facturaModel)));            
+        }
+        
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ResponseWrapper<Void>> eliminarFactura(@PathVariable Long id) {
         facturacionService.eliminar(id);
+        
+        if (facturacionService.obtenerPorId(id) != null) {
+            return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ResponseWrapper<>("Error al eliminar la factura", 0, null));
+        } else {
+            return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(new ResponseWrapper<>("Factura eliminada exitosamente", 1, null));
+        }
 
-        return ResponseEntity
-            .status(HttpStatus.OK)
-            .body(new ResponseWrapper<>("Factura Eliminada", 1, null));
+        
     }
    
 }
