@@ -18,8 +18,9 @@ public class FacturacionService {
     private FacturaRepository facturaRepository;    
     private ServicioRepository servicioRepository;
 
-    public FacturacionService(FacturaRepository facturaRepository) {
-        this.facturaRepository = facturaRepository;        
+    public FacturacionService(FacturaRepository facturaRepository, ServicioRepository servicioRepository) { 
+        this.facturaRepository = facturaRepository;    
+        this.servicioRepository = servicioRepository;   
     }
 
     // Obtener todas las facturas

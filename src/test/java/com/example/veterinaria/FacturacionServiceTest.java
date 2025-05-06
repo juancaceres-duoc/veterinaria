@@ -21,9 +21,9 @@ public class FacturacionServiceTest {
     private FacturaRepository facturaRepository;
 
     @BeforeEach
-    public void setUp() {
-        facturaRepository = mock(FacturaRepository.class);
-        facturacionService = new FacturacionService(facturaRepository);
+    public void setUp() {      
+        facturaRepository = mock(FacturaRepository.class);    
+        facturacionService = new FacturacionService(facturaRepository, null);
     }
 
     @Test

@@ -98,18 +98,12 @@ public class FacturacionController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ResponseWrapper<Void>> eliminarFactura(@PathVariable Long id) {
-        facturacionService.eliminar(id);
+        facturacionService.eliminar(id); 
         
-        if (facturacionService.obtenerPorId(id) != null) {
-            return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ResponseWrapper<>("Error al eliminar la factura", 0, null));
-        } else {
-            return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(new ResponseWrapper<>("Factura eliminada exitosamente", 1, null));
-        }
-
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(new ResponseWrapper<>("Factura eliminada exitosamente", 1, null));
+        
         
     }
    
