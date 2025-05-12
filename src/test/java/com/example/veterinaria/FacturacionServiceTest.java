@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 
 import com.example.veterinaria.service.FacturacionService;
+import com.example.veterinaria.repository.ServicioRepository;
 
 import com.example.veterinaria.model.Factura;
 import com.example.veterinaria.model.Servicio;
@@ -19,11 +20,13 @@ import com.example.veterinaria.repository.FacturaRepository;
 public class FacturacionServiceTest {
     private FacturacionService facturacionService;
     private FacturaRepository facturaRepository;
+    private ServicioRepository servicioRepository;
 
     @BeforeEach
     public void setUp() {      
-        facturaRepository = mock(FacturaRepository.class);    
-        facturacionService = new FacturacionService(facturaRepository, null);
+        facturaRepository = mock(FacturaRepository.class);  
+        servicioRepository = mock(ServicioRepository.class);  
+        facturacionService = new FacturacionService(facturaRepository, servicioRepository);
     }
 
     @Test
@@ -80,5 +83,50 @@ public class FacturacionServiceTest {
         assertEquals("Cliente A", resultado.getCliente());
         assertEquals(3, resultado.getServicios().size());
         assertEquals(267, resultado.getTotal());      
-    }    
+    }   
+    
+    @Test
+    public void testGuardarFactura() {
+        Factura factura = new Factura();
+        factura.setId(1L);
+        factura.setRazon_social("Empresa A");
+        factura.setCliente("Cliente A");
+        List<Servicio> servicios = Arrays.asList(
+            new Servicio(1L, "Servicio A", "Descripcion A", 50),
+            new Servicio(2L, "Servicio B", "Descripcion B", 75),
+            new Servicio(3L, "Servicio C", "Descripcion C", 100)
+            );
+        factura.setServicios(servicios);        
+        factura.setTotal(facturacionService.calcularTotal(factura.getServicios()));
+
+        when(servicioRepository.findAllById(any())).thenReturn(servicios);
+        when(facturaRepository.save(factura)).thenReturn(factura);
+        Factura resultado = facturacionService.guardar(factura);
+
+        assertEquals("Empresa A", resultado.getRazon_social());
+        assertEquals("Cliente A", resultado.getCliente());
+        assertEquals(3, resultado.getServicios().size());
+        assertEquals(267, resultado.getTotal());      
+    }
+
+    @Test
+    public void testEliminarFactura() {
+        Factura factura = new Factura();
+        factura.setId(1L);
+        factura.setRazon_social("Empresa A");
+        factura.setCliente("Cliente A");
+        factura.setServicios(Arrays.asList(
+            new Servicio(1L, "Servicio A", "Descripcion A", 50),
+            new Servicio(2L, "Servicio B", "Descripcion B", 75),
+            new Servicio(3L, "Servicio C", "Descripcion C", 100)
+            ));
+        factura.setTotal(facturacionService.calcularTotal(factura.getServicios()));
+
+        when(facturaRepository.findById(1L)).thenReturn(Optional.of(factura));
+        doNothing().when(facturaRepository).delete(factura);
+
+        facturacionService.eliminar(1L);
+
+        verify(facturaRepository, times(1)).delete(factura);
+    }
 }
